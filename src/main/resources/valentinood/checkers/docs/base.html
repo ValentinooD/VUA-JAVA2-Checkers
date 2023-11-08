@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>%NAME%</title>
+
+        <style>
+            body {
+                margin: 0;
+                padding 18px;
+                color: #ddd;
+                background-color: #262626;
+                font-family: Arial, Helvetica, sans-serif;
+                line-height: 6px;
+                letter-spacing: 0.75px;
+                font-weight: bold;
+            }
+
+            #wrapper {
+                margin: 28px;
+            }
+
+            #package > span {
+                color: #f2830c;
+            }
+
+            #header {
+                margin-top: 32px;
+            }
+
+            #content {
+                margin: 18px;
+            }
+
+            #className {
+                font-size: 24px;
+                margin-top: 6px;
+            }
+
+            .space {
+                margin-top: 42px;
+            }
+
+            .primitive {
+                color: #f2830c;
+            }
+
+            .color {
+                color: #f2830c;
+            }
+
+            .variable {
+                color: #2ea7cc;
+            }
+        </style>
+    </head>
+    <body>
+    <div id="wrapper">
+        <p id="package"><span>package</span> %PACKAGE%;</p>
+
+        <div id="header">
+
+            %ANNOTATIONS%
+
+            <p id="className"><span class="color">%TYPE%</span> %NAME% %EXTENDS% %IMPLEMENTS%</p>
+        </div>
+
+        <div id="content">
+            <div id="fields">
+                %FIELDS%
+            </div>
+
+            <div id="constructors" class="space">
+                %CONSTRUCTORS%
+            </div>
+
+            <div id="methods" class="space">
+                %METHODS%
+            </div>
+        </div>
+    </div>
+    </body>
+</html>

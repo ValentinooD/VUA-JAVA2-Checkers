@@ -17,22 +17,26 @@ import java.util.HashMap;
 
 public class GameBoard {
     private final GridPane gridPane;
-    private final int columns;
-    private final int rows;
-
-    private final HashMap<PieceTeam, Integer> piecesCount;
-    private final Piece[][] board;
     private final EventRepository eventRepository;
+
+    private int columns;
+    private int rows;
+
+    private boolean playable = true;
+
+    private HashMap<PieceTeam, Integer> piecesCount;
+    private Piece[][] board;
 
     private PieceTeam currentMove;  // NOTE: Should not be modified directly! Use setCurrentMove(...)
 
     public GameBoard(GridPane gridPane, int columns, int rows) {
         this.gridPane = gridPane;
+        this.eventRepository = new EventRepository();
+
         this.columns = columns;
         this.rows = rows;
         this.board = new Piece[rows][columns];
         this.piecesCount = new HashMap<>();
-        this.eventRepository = new EventRepository();
     }
 
     public void initGrid() {
@@ -91,7 +95,7 @@ public class GameBoard {
         setCurrentMove(PieceTeam.Blue);
     }
 
-    public void restart() {
+    private void clearBoard() {
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
                 if (get(j, i) != null) {
@@ -99,7 +103,10 @@ public class GameBoard {
                 }
             }
         }
+    }
 
+    public void restart() {
+        clearBoard();
         initGame();
     }
 
@@ -124,9 +131,6 @@ public class GameBoard {
     }
 
     public StackPane put(Piece piece, int column, int row) {
-        if (board[row][column] != null)
-            throw new IllegalStateException("Board already contains a piece at that location. (" + board[row][column].getType() + ")");
-
         board[row][column] = piece;
 
         getPaneAt(column, row).getChildren().clear();
@@ -171,12 +175,58 @@ public class GameBoard {
         return rows;
     }
 
+    public boolean isPlayable() {
+        return playable;
+    }
+
     public void setCurrentMove(PieceTeam currentMove) {
         this.currentMove = currentMove;
 
         EventHandler<CurrentMoveChangedEvent> handler = getEventRepository().getHandler(CurrentMoveChangedEvent.class);
         if (handler != null) {
             handler.handle(new CurrentMoveChangedEvent(this.currentMove));
+        }
+    }
+
+    public void setPlayable(boolean playable) {
+        this.playable = playable;
+    }
+
+    public void setSnapshot(GameBoardSnapshot snapshot) {
+        GameMoveEventHandler.clearSelections();
+
+        // Destroys board (UI)
+        gridPane.getChildren().clear();
+        gridPane.getColumnConstraints().clear();
+        gridPane.getRowConstraints().clear();
+
+        // Crates new board (UI)
+        this.columns = snapshot.getColumns();
+        this.rows = snapshot.getRows();
+        initGrid();
+
+        // Restore game
+        this.board = snapshot.getBoard();
+        syncBoard();
+        this.piecesCount = snapshot.getPiecesCount();
+
+        setCurrentMove(snapshot.getCurrentMove());
+    }
+
+    public GameBoardSnapshot getSnapshot() {
+        return new GameBoardSnapshot(columns, rows, board, currentMove);
+    }
+
+    private void syncBoard() {
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                Piece piece = board[row][column];
+
+                getPaneAt(column, row).getChildren().clear();
+
+                if (piece != null)
+                    getPaneAt(column, row).getChildren().add(piece.getImageView());
+            }
         }
     }
 }

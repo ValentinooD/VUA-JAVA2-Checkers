@@ -2,7 +2,6 @@ module valentinood.checkers {
     requires javafx.controls;
     requires javafx.fxml;
 
-
     exports valentinood.checkers;
     exports valentinood.checkers.controllers;
 

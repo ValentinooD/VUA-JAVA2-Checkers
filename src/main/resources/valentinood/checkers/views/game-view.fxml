@@ -1,29 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.text.Text?>
 
-<BorderPane prefHeight="600.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="valentinood.checkers.controllers.GameController">
+<BorderPane prefHeight="650.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="valentinood.checkers.controllers.GameController">
    <top>
-      <AnchorPane prefHeight="46.0" prefWidth="600.0" BorderPane.alignment="CENTER">
-         <Text fx:id="txtOtherPlayerName" layoutX="14.0" layoutY="28.0" strokeType="OUTSIDE" strokeWidth="0.0"
-               text="txtOtherPlayerName"/>
-      </AnchorPane>
+       <MenuBar BorderPane.alignment="CENTER">
+           <menus>
+               <Menu mnemonicParsing="false" text="File">
+                   <items>
+                       <MenuItem mnemonicParsing="false" onAction="#onClickMenuItemLoad" text="Load" />
+                       <MenuItem mnemonicParsing="false" onAction="#onClickMenuItemSave" text="Save" />
+                       <MenuItem mnemonicParsing="false" onAction="#onClickMenuItemClose" text="Close" />
+                   </items>
+               </Menu>
+           </menus>
+       </MenuBar>
    </top>
-   <bottom>
-      <AnchorPane prefHeight="46.0" prefWidth="600.0" BorderPane.alignment="CENTER">
-         <Text fx:id="txtPlayerName" layoutX="14.0" layoutY="28.0" strokeType="OUTSIDE" strokeWidth="0.0"
-               text="txtPlayerName"/>
-      </AnchorPane>
-   </bottom>
-   <center>
-      <GridPane fx:id="gpGameBoard" BorderPane.alignment="CENTER">
-        <columnConstraints>
-        </columnConstraints>
-        <rowConstraints>
-        </rowConstraints>
-      </GridPane>
-   </center>
+    <center>
+        <BorderPane>
+            <top>
+                <AnchorPane prefHeight="46.0" prefWidth="600.0" BorderPane.alignment="CENTER">
+                    <Text fx:id="txtOtherPlayerName" layoutX="14.0" layoutY="28.0" strokeType="OUTSIDE" strokeWidth="0.0" text="txtOtherPlayerName" />
+                </AnchorPane>
+            </top>
+            <bottom>
+                <AnchorPane prefHeight="46.0" prefWidth="600.0" BorderPane.alignment="CENTER">
+                    <Text fx:id="txtPlayerName" layoutX="14.0" layoutY="28.0" strokeType="OUTSIDE" strokeWidth="0.0" text="txtPlayerName" />
+                </AnchorPane>
+            </bottom>
+            <center>
+                <GridPane fx:id="gpGameBoard" BorderPane.alignment="CENTER">
+                </GridPane>
+            </center>
+        </BorderPane>
+    </center>
 </BorderPane>

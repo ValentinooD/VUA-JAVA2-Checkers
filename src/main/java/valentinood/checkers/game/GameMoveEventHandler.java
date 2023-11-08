@@ -34,6 +34,8 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
     public void handle(MouseEvent mouseEvent) {
         clearSelections();
 
+        if (!gameBoard.isPlayable()) return;
+
         Piece piece = gameBoard.get(pieceColumn, pieceRow);
         if (piece == null && selected != null) {
             doMove(); // method handles legality of move
@@ -118,7 +120,7 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
     // Useful for if the user clicks on another tile we can clear all the rest
     // and there aren't too many to slow down the app
     private static final List<GameMoveEventHandler> HANDLERS = new ArrayList<>();
-    private static void clearSelections() {
+    public static void clearSelections() {
         for (GameMoveEventHandler handler : HANDLERS) {
             handler.clearHighlight();
         }

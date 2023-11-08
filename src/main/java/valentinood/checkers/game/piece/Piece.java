@@ -3,9 +3,14 @@ package valentinood.checkers.game.piece;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
-public class Piece {
+import java.io.Serializable;
+
+public class Piece implements Serializable {
     private PieceType type;
-    private ImageView imageView;
+    private transient ImageView imageView;
+
+    public Piece() {
+    }
 
     public Piece(PieceType type) {
         this.type = type;
@@ -26,6 +31,8 @@ public class Piece {
     }
 
     public ImageView getImageView() {
+        if (imageView == null) loadImage();
+
         return imageView;
     }
 
@@ -54,6 +61,7 @@ public class Piece {
     public String toString() {
         return "Piece{" +
                 "type=" + type +
+                ", imageView=" + imageView +
                 '}';
     }
 }
