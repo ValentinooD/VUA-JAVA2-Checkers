@@ -7,14 +7,13 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ConstructorData implements IDocumentable {
     private final Class<?> parent;
     private final Constructor<?> constructor;
 
-    private final List<Annotation> annotations;
+    private final List<AnnotationData> annotations;
     private final List<ParameterData> params;
     private ExceptionData exceptions;
 
@@ -28,9 +27,11 @@ public class ConstructorData implements IDocumentable {
     }
 
     private void load() {
-        annotations.addAll(Arrays.stream(constructor.getAnnotations()).toList());
-
         exceptions = new ExceptionData(parent, constructor);
+
+        for (Annotation annotation : constructor.getAnnotations()) {
+            annotations.add(new AnnotationData(annotation));
+        }
 
         for (Parameter param : constructor.getParameters()) {
             params.add(new ParameterData(parent, constructor, param));
@@ -52,10 +53,28 @@ public class ConstructorData implements IDocumentable {
         }
         file.replace("%PARAMS%", String.join(", ", list));
 
-
-        // TODO: annotation
-        file.replace("%ANNOTATIONS%", "");
+        file.insert("%ANNOTATIONS%", annotations.stream().map(a -> (IDocumentable) a).toList());
 
         return file;
+    }
+
+    public Class<?> getParent() {
+        return parent;
+    }
+
+    public Constructor<?> getConstructor() {
+        return constructor;
+    }
+
+    public List<AnnotationData> getAnnotations() {
+        return new ArrayList<>(annotations);
+    }
+
+    public List<ParameterData> getParams() {
+        return new ArrayList<>(params);
+    }
+
+    public ExceptionData getExceptions() {
+        return exceptions;
     }
 }

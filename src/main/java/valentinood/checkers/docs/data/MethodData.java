@@ -7,7 +7,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class MethodData implements IDocumentable {
@@ -17,7 +16,7 @@ public class MethodData implements IDocumentable {
     private String name;
     private Class<?> returns;
     private String modifier;
-    private final List<Annotation> annotations;
+    private final List<AnnotationData> annotations;
     private final List<ParameterData> params;
     private ExceptionData exceptions;
 
@@ -35,7 +34,9 @@ public class MethodData implements IDocumentable {
         this.modifier = Modifier.toString(method.getModifiers());
         this.exceptions = new ExceptionData(parent, method);
 
-        annotations.addAll(Arrays.stream(method.getAnnotations()).toList());
+        for (Annotation annotation : method.getAnnotations()) {
+            annotations.add(new AnnotationData(annotation));
+        }
 
         for (Parameter param : method.getParameters()) {
             params.add(new ParameterData(parent, method, param));
@@ -64,9 +65,7 @@ public class MethodData implements IDocumentable {
         }
         file.replace("%PARAMS%", String.join(", ", list));
 
-
-        // TODO: annotation
-        file.replace("%ANNOTATIONS%", "");
+        file.insert("%ANNOTATIONS%", annotations.stream().map(a -> (IDocumentable) a).toList());
 
         return file;
     }
@@ -91,7 +90,7 @@ public class MethodData implements IDocumentable {
         return modifier;
     }
 
-    public List<Annotation> getAnnotations() {
+    public List<AnnotationData> getAnnotations() {
         return new ArrayList<>(annotations);
     }
 

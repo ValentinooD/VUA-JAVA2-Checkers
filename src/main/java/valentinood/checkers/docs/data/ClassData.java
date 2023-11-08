@@ -37,7 +37,7 @@ public class ClassData implements IDocumentable {
         extension = new ExtendsData(clazz);
 
         for (Annotation annotation : clazz.getAnnotations()) {
-            annotations.add(new AnnotationData(clazz, annotation));
+            annotations.add(new AnnotationData(annotation));
         }
 
         for (Field field : clazz.getDeclaredFields()) {
