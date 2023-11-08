@@ -28,7 +28,7 @@ public class FieldData implements IDocumentable {
         this.annotations = new ArrayList<>();
 
         for (Annotation annotation : field.getAnnotations()) {
-            annotations.add(new AnnotationData(parent, annotation));
+            annotations.add(new AnnotationData(annotation));
         }
     }
 
