@@ -5,6 +5,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import valentinood.checkers.Constants;
 import valentinood.checkers.event.PieceEatenEvent;
+import valentinood.checkers.event.PieceMovedEvent;
 import valentinood.checkers.event.WonGameEvent;
 import valentinood.checkers.game.piece.Piece;
 import valentinood.checkers.game.piece.PieceTeam;
@@ -45,6 +46,7 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
             return;
         }
 
+        if (piece.getTeam() == gameBoard.getUnplayableSide()) return;
         if (piece.getTeam() != gameBoard.getCurrentMove()) return;
 
         selected = new SelectedPiece(piece, pieceColumn, pieceRow);
@@ -64,6 +66,10 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
         if (!selected.allowedMoves.contains(stackPane)) return;
 
         gameBoard.move(selected.column, selected.row, pieceColumn, pieceRow);
+        EventHandler<PieceMovedEvent> pmeh = gameBoard.getEventRepository().getHandler(PieceMovedEvent.class);
+        if (pmeh != null) {
+            pmeh.handle(new PieceMovedEvent(selected.column, selected.row, pieceColumn, pieceRow));
+        }
 
         if (distance(selected.column, selected.row, pieceColumn, pieceRow) > 2) {
             int middleRow = (selected.row + pieceRow) / 2;
@@ -73,7 +79,7 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
 
             EventHandler<PieceEatenEvent> handler = gameBoard.getEventRepository().getHandler(PieceEatenEvent.class);
             if (handler != null) {
-                handler.handle(new PieceEatenEvent(selected.piece, eaten));
+                handler.handle(new PieceEatenEvent(selected.piece, eaten, middleColumn, middleRow));
             }
 
             // It calls an event and refreshes the UI, LEAVE IT HEREE

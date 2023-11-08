@@ -13,4 +13,8 @@ module valentinood.checkers {
     exports valentinood.checkers.game;
     exports valentinood.checkers.game.piece;
     exports valentinood.checkers.event;
+
+    exports valentinood.checkers.network;
+    exports valentinood.checkers.network.packet;
+    exports valentinood.checkers.network.server;
 }

@@ -16,5 +16,8 @@ public final class Constants {
 
     public static final File CLASSDATA_PATH = new File("target/classes/");
 
+    public static final String DEFAULT_HOST = "localhost";
+    public static final int DEFAULT_PORT = 1908;
+
     private Constants() {}
 }

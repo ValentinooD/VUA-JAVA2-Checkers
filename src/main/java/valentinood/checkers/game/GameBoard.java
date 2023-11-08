@@ -28,6 +28,7 @@ public class GameBoard {
     private Piece[][] board;
 
     private PieceTeam currentMove;  // NOTE: Should not be modified directly! Use setCurrentMove(...)
+    private PieceTeam unplayableSide; // Used for multiplayer
 
     public GameBoard(GridPane gridPane, int columns, int rows) {
         this.gridPane = gridPane;
@@ -180,7 +181,13 @@ public class GameBoard {
     }
 
     public void setCurrentMove(PieceTeam currentMove) {
+        setCurrentMove(currentMove, false);
+    }
+
+    public void setCurrentMove(PieceTeam currentMove, boolean ignoreEvent) {
         this.currentMove = currentMove;
+
+        if (ignoreEvent) return;
 
         EventHandler<CurrentMoveChangedEvent> handler = getEventRepository().getHandler(CurrentMoveChangedEvent.class);
         if (handler != null) {
@@ -190,6 +197,14 @@ public class GameBoard {
 
     public void setPlayable(boolean playable) {
         this.playable = playable;
+    }
+
+    public PieceTeam getUnplayableSide() {
+        return unplayableSide;
+    }
+
+    public void setUnplayableSide(PieceTeam unplayableSide) {
+        this.unplayableSide = unplayableSide;
     }
 
     public void setSnapshot(GameBoardSnapshot snapshot) {

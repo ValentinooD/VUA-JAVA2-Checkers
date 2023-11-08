@@ -6,16 +6,25 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import valentinood.checkers.Constants;
 import valentinood.checkers.event.CurrentMoveChangedEvent;
+import valentinood.checkers.event.PieceEatenEvent;
+import valentinood.checkers.event.PieceMovedEvent;
 import valentinood.checkers.event.WonGameEvent;
 import valentinood.checkers.game.GameBoard;
 import valentinood.checkers.game.GameBoardSnapshot;
 import valentinood.checkers.game.piece.PieceTeam;
+import valentinood.checkers.network.Network;
+import valentinood.checkers.network.PacketListener;
+import valentinood.checkers.network.packet.*;
 import valentinood.checkers.util.SerializationUtils;
 
 import java.io.File;
@@ -29,22 +38,59 @@ public class GameController {
     @FXML
     public GridPane gpGameBoard;
 
+    @FXML
+    public ListView<Text> lstChat;
+    @FXML
+    public TextField tfChatInput;
+
+    private Network network;
+
     private Stage myself;
     public GameBoard gameBoard;
 
-    public void init(Stage stage, String username) {
+    public void init(Stage stage, String username, int columns, int rows) {
         this.myself = stage;
 
         txtPlayerName.setText(username);
         txtOtherPlayerName.setText(username + "'s archnemesis");
 
-        this.gameBoard = new GameBoard(gpGameBoard, 8, 8);
+        this.gameBoard = new GameBoard(gpGameBoard, columns, rows);
         this.gameBoard.initGrid();
 
         this.gameBoard.getEventRepository().register(new WonGameEventHandler());
         this.gameBoard.getEventRepository().register(new CurrentMoveChanged());
+        this.gameBoard.getEventRepository().register(new PieceMovedEventHandler());
+        this.gameBoard.getEventRepository().register(new PieceEatenEventHandler());
 
         this.gameBoard.initGame();
+
+        this.tfChatInput.setOnKeyPressed(new EventHandler<KeyEvent>() {
+            @Override
+            public void handle(KeyEvent event) {
+                if (tfChatInput.getText().isBlank()) return;
+
+                if (event.getCode() == KeyCode.ENTER) {
+                    network.sendOnThread(new PacketGameChatMessage(tfChatInput.getText()));
+                    lstChat.getItems().add(new Text(tfChatInput.getText()));
+
+                    tfChatInput.setText("");
+                }
+            }
+        });
+    }
+
+    public void connect(Network network, PacketGameBegin begin) {
+        this.network = network;
+
+        this.gameBoard.setUnplayableSide(begin.getPlayerTeam() == PieceTeam.Blue ? PieceTeam.Red : PieceTeam.Blue);
+
+        txtOtherPlayerName.setText(begin.getTeams().get(PieceTeam.Red));
+        txtPlayerName.setText(begin.getTeams().get(PieceTeam.Blue));
+
+        this.network.register(new PacketReceiveMessage());
+        this.network.register(new PacketCurrentMove());
+        this.network.register(new PacketPieceEaten());
+        this.network.register(new PacketPieceMoved());
     }
 
     private void restart() {
@@ -100,6 +146,34 @@ public class GameController {
         Platform.exit();
     }
 
+    private class PacketPieceEaten implements PacketListener<PacketGamePieceEaten> {
+        @Override
+        public void received(PacketGamePieceEaten packet) throws Exception {
+            Platform.runLater(() -> gameBoard.remove(packet.getColumn(), packet.getRow()));
+        }
+    }
+
+    private class PacketPieceMoved implements PacketListener<PacketGamePieceMove> {
+        @Override
+        public void received(PacketGamePieceMove packet) throws Exception {
+            Platform.runLater(() -> gameBoard.move(packet.getFromColumn(), packet.getFromRow(), packet.getToColumn(), packet.getTomRow()));
+        }
+    }
+
+    private class PacketCurrentMove implements PacketListener<PacketGameCurrentMove> {
+        @Override
+        public void received(PacketGameCurrentMove packet) throws Exception {
+            Platform.runLater(() -> gameBoard.setCurrentMove(packet.getCurrentMove(), true));
+        }
+    }
+
+    private class PacketReceiveMessage implements PacketListener<PacketGameChatMessage> {
+        @Override
+        public void received(PacketGameChatMessage packet) throws Exception {
+            Platform.runLater(() -> lstChat.getItems().add(new Text(packet.getMessage())));
+        }
+    }
+
     private class CurrentMoveChanged implements EventHandler<CurrentMoveChangedEvent> {
         @Override
         public void handle(CurrentMoveChangedEvent event) {
@@ -110,6 +184,9 @@ public class GameController {
                 txtOtherPlayerName.setStyle("-fx-font-weight: normal;");
                 txtPlayerName.setStyle("-fx-font-weight: bold;");
             }
+
+            if (network != null)
+                network.sendOnThread(new PacketGameCurrentMove(event.getCurrentMove()));
         }
     }
 
@@ -126,6 +203,27 @@ public class GameController {
             } else {
                 Platform.exit();
             }
+        }
+    }
+
+    private class PieceMovedEventHandler implements EventHandler<PieceMovedEvent> {
+        @Override
+        public void handle(PieceMovedEvent event) {
+            if (network != null)
+                network.sendOnThread(new PacketGamePieceMove(
+                        event.getFromColumn(),
+                        event.getFromRow(),
+                        event.getToColumn(),
+                        event.getTomRow()
+                ));
+        }
+    }
+
+    private class PieceEatenEventHandler implements EventHandler<PieceEatenEvent> {
+        @Override
+        public void handle(PieceEatenEvent event) {
+            if (network != null)
+                network.sendOnThread(new PacketGamePieceEaten(event.getColumn(), event.getRow()));
         }
     }
 }
