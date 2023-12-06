@@ -1,7 +1,11 @@
 package valentinood.checkers.network;
 
+import javafx.application.Platform;
 import valentinood.checkers.Constants;
+import valentinood.checkers.network.annotations.OnFXThread;
+import valentinood.checkers.network.annotations.SingleRegistration;
 import valentinood.checkers.network.packet.Packet;
+import valentinood.checkers.network.packet.PacketConnectionDisconnect;
 import valentinood.checkers.network.packet.PacketConnectionKeepAlive;
 import valentinood.checkers.network.packet.PacketConnectionResult;
 import valentinood.checkers.network.server.Server;
@@ -10,6 +14,7 @@ import valentinood.checkers.util.NetworkUtils;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -27,6 +32,7 @@ public class Network {
     private final int port;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
+    private boolean disconnected = false;
 
     public Network(int port) {
         this.port = port;
@@ -45,13 +51,12 @@ public class Network {
         // if the port is free that means the server doesn't exist, and it will create a server
         if (NetworkUtils.isPortFree(Constants.DEFAULT_HOST, port)) {
             server = new Server(port);
-            new Thread(() -> server.start()).start();
+            new Thread(() -> server.start(), "Server").start();
             Thread.sleep(2500); // wait a second for the server to start
         }
 
         client = new Socket(Constants.DEFAULT_HOST, port);
-
-        new Thread(() -> connect(client)).start();
+        connect(client);
     }
 
     private void connect(Socket socket) {
@@ -59,8 +64,8 @@ public class Network {
             oos = new ObjectOutputStream(socket.getOutputStream());
             ois = new ObjectInputStream(socket.getInputStream());
 
-            new Thread(this::handleQueue).start();
-            listen(socket);
+            new Thread(this::handleQueue, "NetworkClient-PacketQueue").start();
+            new Thread(() -> listen(client), "NetworkClient-Listener").start();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -71,13 +76,13 @@ public class Network {
     }
 
     private void handleQueue() {
-        while (true) {
+        while (!disconnected) {
             try {
-                while (!packetQueue.isEmpty()) {
+                while (!packetQueue.isEmpty() && !disconnected) {
                     Packet packet = packetQueue.remove();
                     oos.writeObject(packet);
 
-                    System.out.println("-> " + packet);
+//                    System.out.println("-> " + packet);
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -85,14 +90,16 @@ public class Network {
         }
     }
 
-    private void listen(Socket socket) throws IOException {
+    private void listen(Socket socket) {
         try {
-            while (true) {
+            while (!disconnected && socket.isConnected()) {
+                if (socket.getInputStream().available() == 0) continue;
+
                 // Handle listen
                 Object object = ois.readObject();
                 if (object == null) continue;
 
-                System.out.println("<- " + object);
+//                System.out.println("<- " + object);
 
                 if (object instanceof Packet) {
                     sendEvent((Packet) object);
@@ -102,22 +109,40 @@ public class Network {
                     if (!packet.getResult().isAllowed()) {
                         disconnect();
 
-                        ois.close();
-                        oos.close();
                         break;
                     }
+                }
+
+                if (object instanceof PacketConnectionDisconnect) {
+                    disconnect();
+                    break;
                 }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         } finally {
-            oos.close();
-            ois.close();
+            disconnect();
+        }
+    }
+
+    public void stop() {
+        try {
+            // writing directly
+            oos.writeObject(new PacketConnectionDisconnect());
+            disconnect();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
     private void disconnect() {
-        System.out.println("Stopped");
+        try {
+            disconnected = true;
+            ois.close();
+            oos.close();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private void sendEvent(Packet packet) {
@@ -128,7 +153,18 @@ public class Network {
             for (PacketListener<?> listener : list) {
                 Method method = listener.getClass().getMethod("received", packet.getClass());
                 method.setAccessible(true);
-                method.invoke(listener, packet);
+
+                if (method.getDeclaringClass().isAnnotationPresent(OnFXThread.class)) {
+                    Platform.runLater(() -> {
+                        try {
+                            method.invoke(listener, packet);
+                        } catch (IllegalAccessException | InvocationTargetException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                } else {
+                    method.invoke(listener, packet);
+                }
             }
         } catch (Exception ex) {
             System.err.println("Exception while processing packet event: " + packet);
@@ -138,11 +174,24 @@ public class Network {
 
     public void register(PacketListener<?> listener) {
         Class<?> handlerClass = listener.getClass();
+
+        // TODO: find a way to do this
+        if (handlerClass.isSynthetic()) {
+            System.err.println(handlerClass.getName() + " is synthetic (likely lambda) and cannot be registered as an event. Ignored.");
+            return;
+        }
+
         ParameterizedType pt = (ParameterizedType) handlerClass.getGenericInterfaces()[0];
         Type actualType = pt.getActualTypeArguments()[0];
         Class<? extends Packet> clazz = (Class<? extends Packet>) actualType;
 
         List<PacketListener<?>> list = listenerMap.getOrDefault(clazz, new ArrayList<>());
+
+        if (handlerClass.isAnnotationPresent(SingleRegistration.class) && !list.isEmpty()) {
+            System.err.println(handlerClass.getName() + " is being registered twice but has @SingleRegistration. Ignored.");
+            return;
+        }
+
         list.add(listener);
         listenerMap.put(clazz, list);
     }
@@ -158,16 +207,16 @@ public class Network {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-        }).start();
+        }, "NetworkClient-StartOnThread").start();
     }
 
     public void sendOnThread(Packet packet) {
-        new Thread(() -> send(packet)).start();
+        new Thread(() -> send(packet), "NetworkClient-SendOnThread").start();
     }
 
     public static void main(String[] args) {
         System.out.println("[SERVER] Starting standalone server on port 1908");
-        Server srv = new Server(1908);
+        Server srv = new Server(Constants.DEFAULT_PORT);
         srv.start();
     }
 }

@@ -181,17 +181,15 @@ public class GameBoard {
     }
 
     public void setCurrentMove(PieceTeam currentMove) {
-        setCurrentMove(currentMove, false);
+        setCurrentMove(currentMove, true);
     }
 
-    public void setCurrentMove(PieceTeam currentMove, boolean ignoreEvent) {
+    public void setCurrentMove(PieceTeam currentMove, boolean sendPacket) {
         this.currentMove = currentMove;
-
-        if (ignoreEvent) return;
 
         EventHandler<CurrentMoveChangedEvent> handler = getEventRepository().getHandler(CurrentMoveChangedEvent.class);
         if (handler != null) {
-            handler.handle(new CurrentMoveChangedEvent(this.currentMove));
+            handler.handle(new CurrentMoveChangedEvent(this.currentMove, sendPacket));
         }
     }
 

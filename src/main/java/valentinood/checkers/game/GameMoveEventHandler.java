@@ -93,7 +93,7 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
                 EventHandler<WonGameEvent> wgeHandler = gameBoard.getEventRepository().getHandler(WonGameEvent.class);
 
                 if (wgeHandler != null) {
-                    wgeHandler.handle(new WonGameEvent(won));
+                    wgeHandler.handle(new WonGameEvent(won, true));
                 }
             }
         } else {

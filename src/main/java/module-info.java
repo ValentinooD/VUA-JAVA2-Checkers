@@ -17,4 +17,9 @@ module valentinood.checkers {
     exports valentinood.checkers.network;
     exports valentinood.checkers.network.packet;
     exports valentinood.checkers.network.server;
+    exports valentinood.checkers.controllers.game;
+    opens valentinood.checkers.controllers.game to javafx.fxml;
+    exports valentinood.checkers.controllers.game.handlers;
+    opens valentinood.checkers.controllers.game.handlers to javafx.fxml;
+    exports valentinood.checkers.network.annotations;
 }

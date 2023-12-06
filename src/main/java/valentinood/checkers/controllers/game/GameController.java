@@ -1,11 +1,9 @@
-package valentinood.checkers.controllers;
+package valentinood.checkers.controllers.game;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
@@ -14,17 +12,22 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import valentinood.checkers.Constants;
-import valentinood.checkers.event.CurrentMoveChangedEvent;
-import valentinood.checkers.event.PieceEatenEvent;
-import valentinood.checkers.event.PieceMovedEvent;
+import valentinood.checkers.controllers.game.handlers.CurrentMoveChangedEventHandler;
+import valentinood.checkers.controllers.game.handlers.PieceEatenEventHandler;
+import valentinood.checkers.controllers.game.handlers.PieceMovedEventHandler;
+import valentinood.checkers.controllers.game.handlers.WonGameEventHandler;
+import valentinood.checkers.controllers.packet.PacketHandlerDisconnected;
 import valentinood.checkers.event.WonGameEvent;
 import valentinood.checkers.game.GameBoard;
 import valentinood.checkers.game.GameBoardSnapshot;
 import valentinood.checkers.game.piece.PieceTeam;
 import valentinood.checkers.network.Network;
 import valentinood.checkers.network.PacketListener;
+import valentinood.checkers.network.annotations.OnFXThread;
 import valentinood.checkers.network.packet.*;
+import valentinood.checkers.util.AlertUtils;
 import valentinood.checkers.util.SerializationUtils;
 
 import java.io.File;
@@ -57,10 +60,10 @@ public class GameController {
         this.gameBoard = new GameBoard(gpGameBoard, columns, rows);
         this.gameBoard.initGrid();
 
-        this.gameBoard.getEventRepository().register(new WonGameEventHandler());
-        this.gameBoard.getEventRepository().register(new CurrentMoveChanged());
-        this.gameBoard.getEventRepository().register(new PieceMovedEventHandler());
-        this.gameBoard.getEventRepository().register(new PieceEatenEventHandler());
+        this.gameBoard.getEventRepository().register(new WonGameEventHandler(this));
+        this.gameBoard.getEventRepository().register(new CurrentMoveChangedEventHandler(this, txtPlayerName, txtOtherPlayerName));
+        this.gameBoard.getEventRepository().register(new PieceMovedEventHandler(this));
+        this.gameBoard.getEventRepository().register(new PieceEatenEventHandler(this));
 
         this.gameBoard.initGame();
 
@@ -77,6 +80,13 @@ public class GameController {
                 }
             }
         });
+
+        stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent windowEvent) {
+                if (network != null) network.stop();
+            }
+        });
     }
 
     public void connect(Network network, PacketGameBegin begin) {
@@ -87,13 +97,16 @@ public class GameController {
         txtOtherPlayerName.setText(begin.getTeams().get(PieceTeam.Red));
         txtPlayerName.setText(begin.getTeams().get(PieceTeam.Blue));
 
+        // note: PacketHandlerDisconnected is already registered before
         this.network.register(new PacketReceiveMessage());
         this.network.register(new PacketCurrentMove());
         this.network.register(new PacketPieceEaten());
         this.network.register(new PacketPieceMoved());
+        this.network.register(new PacketGameEndListener());
+        this.network.register(new PacketHandlerDisconnected());
     }
 
-    private void restart() {
+    public void restart() {
         this.gameBoard.restart();
     }
 
@@ -111,13 +124,7 @@ public class GameController {
 
         } catch (IOException | ClassNotFoundException ex) {
             ex.printStackTrace();
-
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Failed to load game");
-            alert.setHeaderText("The game could not be loaded.");
-            alert.setContentText(ex.toString());
-
-            alert.show();
+            AlertUtils.error("Failed to load game", "The game could not be loaded", ex);
         }
     }
 
@@ -133,17 +140,28 @@ public class GameController {
         } catch (IOException ex) {
             ex.printStackTrace();
 
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Failed to save game");
-            alert.setHeaderText("The game could not be saved.");
-            alert.setContentText(ex.toString());
-
-            alert.show();
+            AlertUtils.error("Failed to save game", "The game could not be saved", ex);
         }
+    }
+
+    public Network getNetwork() {
+        return network;
     }
 
     public void onClickMenuItemClose(ActionEvent event) {
         Platform.exit();
+    }
+
+    @OnFXThread
+    private class PacketGameEndListener implements PacketListener<PacketGameEnd> {
+        @Override
+        public void received(PacketGameEnd packet) throws Exception {
+            EventHandler<WonGameEvent> wgeHandler = gameBoard.getEventRepository().getHandler(WonGameEvent.class);
+
+            if (wgeHandler != null) {
+                wgeHandler.handle(new WonGameEvent(packet.getWinner(), false));
+            }
+        }
     }
 
     private class PacketPieceEaten implements PacketListener<PacketGamePieceEaten> {
@@ -163,7 +181,7 @@ public class GameController {
     private class PacketCurrentMove implements PacketListener<PacketGameCurrentMove> {
         @Override
         public void received(PacketGameCurrentMove packet) throws Exception {
-            Platform.runLater(() -> gameBoard.setCurrentMove(packet.getCurrentMove(), true));
+            Platform.runLater(() -> gameBoard.setCurrentMove(packet.getCurrentMove(), false));
         }
     }
 
@@ -171,59 +189,6 @@ public class GameController {
         @Override
         public void received(PacketGameChatMessage packet) throws Exception {
             Platform.runLater(() -> lstChat.getItems().add(new Text(packet.getMessage())));
-        }
-    }
-
-    private class CurrentMoveChanged implements EventHandler<CurrentMoveChangedEvent> {
-        @Override
-        public void handle(CurrentMoveChangedEvent event) {
-            if (event.getCurrentMove() == PieceTeam.Red) {
-                txtOtherPlayerName.setStyle("-fx-font-weight: bold;");
-                txtPlayerName.setStyle("-fx-font-weight: normal;");
-            } else {
-                txtOtherPlayerName.setStyle("-fx-font-weight: normal;");
-                txtPlayerName.setStyle("-fx-font-weight: bold;");
-            }
-
-            if (network != null)
-                network.sendOnThread(new PacketGameCurrentMove(event.getCurrentMove()));
-        }
-    }
-
-    private class WonGameEventHandler implements EventHandler<WonGameEvent> {
-        @Override
-        public void handle(WonGameEvent wonGameEvent) {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Game ended");
-            alert.setHeaderText(wonGameEvent.getWhoWon().getPrettyText() + " has won the game.");
-            alert.setContentText("Do you wish to restart the game with the same opponent?");
-
-            if (alert.showAndWait().get() == ButtonType.OK) {
-                restart();
-            } else {
-                Platform.exit();
-            }
-        }
-    }
-
-    private class PieceMovedEventHandler implements EventHandler<PieceMovedEvent> {
-        @Override
-        public void handle(PieceMovedEvent event) {
-            if (network != null)
-                network.sendOnThread(new PacketGamePieceMove(
-                        event.getFromColumn(),
-                        event.getFromRow(),
-                        event.getToColumn(),
-                        event.getTomRow()
-                ));
-        }
-    }
-
-    private class PieceEatenEventHandler implements EventHandler<PieceEatenEvent> {
-        @Override
-        public void handle(PieceEatenEvent event) {
-            if (network != null)
-                network.sendOnThread(new PacketGamePieceEaten(event.getColumn(), event.getRow()));
         }
     }
 }

@@ -1,5 +1,7 @@
 package valentinood.checkers.network.server;
 
+import valentinood.checkers.network.packet.PacketConnectionKeepAlive;
+
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -15,8 +17,9 @@ public class PlayerConnection {
     private final int columns;
     private final int rows;
 
-    private long lastKeepAlive;
-    private int keepAliveNumber = 0;
+    private long lastKeepAlive = -1;
+    private PacketConnectionKeepAlive keepAlive;
+
     private int portForward = -1;
 
     public PlayerConnection(Socket socket, ObjectInputStream ois, ObjectOutputStream oos, String name, int columns, int rows) {
@@ -69,20 +72,16 @@ public class PlayerConnection {
         this.lastKeepAlive = lastKeepAlive;
     }
 
-    public int getKeepAliveNumber() {
-        return keepAliveNumber;
+    public PacketConnectionKeepAlive getKeepAlive() {
+        return keepAlive;
     }
 
-    public void setKeepAliveNumber(int keepAliveNumber) {
-        this.keepAliveNumber = keepAliveNumber;
+    public void setKeepAlivePacket(PacketConnectionKeepAlive keepAlive) {
+        this.keepAlive = keepAlive;
     }
 
     @Override
     public String toString() {
-        return "PlayerConnection{" +
-                "socket=" + socket +
-                ", name='" + name + '\'' +
-                ", portForward=" + portForward +
-                '}';
+        return name + " (" + socket.getPort() + ")";
     }
 }

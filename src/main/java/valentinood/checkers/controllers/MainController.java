@@ -2,6 +2,7 @@ package valentinood.checkers.controllers;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -10,12 +11,13 @@ import javafx.scene.control.TextField;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import valentinood.checkers.CheckersApplication;
+import valentinood.checkers.controllers.game.GameController;
+import valentinood.checkers.controllers.packet.PacketHandlerDisconnected;
 import valentinood.checkers.docs.ProjectDocumentation;
-import valentinood.checkers.game.GameBoardSnapshot;
 import valentinood.checkers.network.Network;
 import valentinood.checkers.network.PacketListener;
-import valentinood.checkers.network.packet.Packet;
 import valentinood.checkers.network.packet.PacketConnectionRequest;
 import valentinood.checkers.network.packet.PacketConnectionResult;
 import valentinood.checkers.network.packet.PacketGameBegin;
@@ -77,6 +79,8 @@ public class MainController {
                 }
             });
 
+            network.register(new PacketHandlerDisconnected());
+
             txtInfo.setText("Starting server...");
             network.startOnThread();
 
@@ -137,5 +141,18 @@ public class MainController {
 
     public void setStage(Stage myself) {
         this.myself = myself;
+
+        initStageEvents();
+    }
+
+    private void initStageEvents() {
+        myself.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent windowEvent) {
+                if (network != null) {
+                    network.stop();
+                }
+            }
+        });
     }
 }
