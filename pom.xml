@@ -38,6 +38,14 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>fscontext</groupId>
+            <artifactId>fscontext</artifactId>
+            <scope>system</scope>
+            <version>4.5-b13</version>
+            <systemPath>${basedir}/lib/fscontext-4.5-b13.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>

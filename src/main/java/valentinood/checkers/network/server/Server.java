@@ -2,6 +2,7 @@ package valentinood.checkers.network.server;
 
 import valentinood.checkers.Constants;
 import valentinood.checkers.game.piece.PieceTeam;
+import valentinood.checkers.network.jndi.ConfigurationReader;
 import valentinood.checkers.network.packet.*;
 import valentinood.checkers.network.rmi.RemoteChatService;
 import valentinood.checkers.network.rmi.RemoteChatServiceImpl;
@@ -68,9 +69,12 @@ public class Server {
     }
 
     private void startRmiChat() throws RemoteException {
-        Registry registry = LocateRegistry.createRegistry(Constants.RMI_PORT);
+        Registry registry = LocateRegistry.createRegistry(ConfigurationReader.getInt(ConfigurationReader.Key.RMI_PORT));
         remoteChatService = new RemoteChatServiceImpl();
-        RemoteChatService skeleton = (RemoteChatService) UnicastRemoteObject.exportObject(remoteChatService, Constants.RMI_PORT);
+        RemoteChatService skeleton = (RemoteChatService) UnicastRemoteObject.exportObject(
+                remoteChatService,
+                ConfigurationReader.getInt(ConfigurationReader.Key.RMI_PORT)
+        );
         registry.rebind(RemoteChatService.REMOTE_OBJECT_NAME, skeleton);
         log("RemoteChatService registered");
     }

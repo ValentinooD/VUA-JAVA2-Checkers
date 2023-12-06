@@ -1,10 +1,13 @@
 package valentinood.checkers.network;
 
 import javafx.application.Platform;
-import valentinood.checkers.Constants;
 import valentinood.checkers.network.annotations.OnFXThread;
 import valentinood.checkers.network.annotations.SingleRegistration;
-import valentinood.checkers.network.packet.*;
+import valentinood.checkers.network.jndi.ConfigurationReader;
+import valentinood.checkers.network.packet.Packet;
+import valentinood.checkers.network.packet.PacketConnectionDisconnect;
+import valentinood.checkers.network.packet.PacketConnectionKeepAlive;
+import valentinood.checkers.network.packet.PacketConnectionResult;
 import valentinood.checkers.network.rmi.RemoteChatService;
 import valentinood.checkers.network.server.Server;
 import valentinood.checkers.util.NetworkUtils;
@@ -51,16 +54,19 @@ public class Network {
 
     public void start() throws Exception {
         // if the port is free that means the server doesn't exist, and it will create a server
-        if (NetworkUtils.isPortFree(Constants.DEFAULT_HOST, port)) {
+        if (NetworkUtils.isPortFree(
+                ConfigurationReader.getString(ConfigurationReader.Key.HOST), port)) {
             server = new Server(port);
             new Thread(() -> server.start(), "Server").start();
             Thread.sleep(2500); // wait a second for the server to start
         }
 
-        Registry registry = LocateRegistry.getRegistry(Constants.DEFAULT_HOST, Constants.RMI_PORT);
+        Registry registry = LocateRegistry.getRegistry(
+                ConfigurationReader.getString(ConfigurationReader.Key.HOST),
+                ConfigurationReader.getInt(ConfigurationReader.Key.RMI_PORT));
         remoteChatService = (RemoteChatService) registry.lookup(RemoteChatService.REMOTE_OBJECT_NAME);
 
-        client = new Socket(Constants.DEFAULT_HOST, port);
+        client = new Socket(ConfigurationReader.getString(ConfigurationReader.Key.HOST), port);
         connect(client);
     }
 
@@ -229,7 +235,7 @@ public class Network {
 
     public static void main(String[] args) {
         System.out.println("[SERVER] Starting standalone server on port 1908");
-        Server srv = new Server(Constants.DEFAULT_PORT);
+        Server srv = new Server(ConfigurationReader.getInt(ConfigurationReader.Key.SERVER_PORT));
         srv.start();
     }
 }

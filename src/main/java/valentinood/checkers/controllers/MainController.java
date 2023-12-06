@@ -7,6 +7,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
@@ -18,6 +19,7 @@ import valentinood.checkers.controllers.packet.PacketHandlerDisconnected;
 import valentinood.checkers.docs.ProjectDocumentation;
 import valentinood.checkers.network.Network;
 import valentinood.checkers.network.PacketListener;
+import valentinood.checkers.network.jndi.ConfigurationReader;
 import valentinood.checkers.network.packet.PacketConnectionRequest;
 import valentinood.checkers.network.packet.PacketConnectionResult;
 import valentinood.checkers.network.packet.PacketGameBegin;
@@ -29,10 +31,9 @@ public class MainController {
     @FXML
     public TextField tfUsername;
     @FXML
-    public TextField tfPort;
-    @FXML
     public Button btnPlay;
-
+    @FXML
+    public CheckBox cbLocalGame;
     @FXML
     public Text txtInfo;
 
@@ -45,19 +46,12 @@ public class MainController {
         username = tfUsername.getText();
         if (username.isBlank()) username = "Player";
 
-        // Playing single-player
-        if (tfPort.getText().isBlank()) {
-            startGame(null);
-            return;
-        }
-
         try {
             tfUsername.setDisable(true);
-            tfPort.setDisable(true);
             btnPlay.setDisable(true);
 
             // TODO: check if the user didn't enter letters
-            network = new Network(Integer.parseInt(tfPort.getText()));
+            network = new Network(ConfigurationReader.getInt(ConfigurationReader.Key.SERVER_PORT));
             network.register(new PacketListener<PacketConnectionResult>() {
                 @Override
                 public void received(PacketConnectionResult packet) throws Exception {

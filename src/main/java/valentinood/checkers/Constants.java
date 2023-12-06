@@ -16,9 +16,6 @@ public final class Constants {
 
     public static final File CLASSDATA_PATH = new File("target/classes/");
 
-    public static final String DEFAULT_HOST = "localhost";
-    public static final int DEFAULT_PORT = 1908;
-    public static final int RMI_PORT = 1909;
     public static final int KEEP_ALIVE_INTERVAL_MILLIS = 10_000;
 
     private Constants() {}
