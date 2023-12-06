@@ -1,6 +1,7 @@
 module valentinood.checkers {
     requires javafx.controls;
     requires javafx.fxml;
+    requires java.rmi;
 
     exports valentinood.checkers;
     exports valentinood.checkers.controllers;
@@ -22,4 +23,5 @@ module valentinood.checkers {
     exports valentinood.checkers.controllers.game.handlers;
     opens valentinood.checkers.controllers.game.handlers to javafx.fxml;
     exports valentinood.checkers.network.annotations;
+    exports valentinood.checkers.network.rmi;
 }

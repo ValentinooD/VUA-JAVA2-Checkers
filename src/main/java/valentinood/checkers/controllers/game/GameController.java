@@ -1,5 +1,8 @@
 package valentinood.checkers.controllers.game;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -13,6 +16,7 @@ import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 import valentinood.checkers.Constants;
 import valentinood.checkers.controllers.game.handlers.CurrentMoveChangedEventHandler;
 import valentinood.checkers.controllers.game.handlers.PieceEatenEventHandler;
@@ -27,11 +31,16 @@ import valentinood.checkers.network.Network;
 import valentinood.checkers.network.PacketListener;
 import valentinood.checkers.network.annotations.OnFXThread;
 import valentinood.checkers.network.packet.*;
+import valentinood.checkers.network.server.Server;
 import valentinood.checkers.util.AlertUtils;
 import valentinood.checkers.util.SerializationUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.rmi.RemoteException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
 public class GameController {
     @FXML
@@ -50,6 +59,7 @@ public class GameController {
 
     private Stage myself;
     public GameBoard gameBoard;
+    private Timeline timeline;
 
     public void init(Stage stage, String username, int columns, int rows) {
         this.myself = stage;
@@ -73,13 +83,13 @@ public class GameController {
                 if (tfChatInput.getText().isBlank()) return;
 
                 if (event.getCode() == KeyCode.ENTER) {
-                    network.sendOnThread(new PacketGameChatMessage(tfChatInput.getText()));
-                    lstChat.getItems().add(new Text(tfChatInput.getText()));
-
+                    network.chat(username + ": " + tfChatInput.getText());
                     tfChatInput.setText("");
                 }
             }
         });
+        tfChatInput.setDisable(true);
+        lstChat.getItems().add(new Text("Chat is not available in single-player mode."));
 
         stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
             @Override
@@ -97,17 +107,43 @@ public class GameController {
         txtOtherPlayerName.setText(begin.getTeams().get(PieceTeam.Red));
         txtPlayerName.setText(begin.getTeams().get(PieceTeam.Blue));
 
+        lstChat.getItems().clear();
+        tfChatInput.setDisable(false);
+
         // note: PacketHandlerDisconnected is already registered before
-        this.network.register(new PacketReceiveMessage());
         this.network.register(new PacketCurrentMove());
         this.network.register(new PacketPieceEaten());
         this.network.register(new PacketPieceMoved());
         this.network.register(new PacketGameEndListener());
         this.network.register(new PacketHandlerDisconnected());
+
+        timeline = new Timeline(new KeyFrame(Duration.millis(1000), event -> updateChat()));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.play();
     }
 
     public void restart() {
         this.gameBoard.restart();
+    }
+
+    private void updateChat() {
+        List<String> chatMessages = null;
+        try {
+            chatMessages = Network.remoteChatService.getMessages();
+        } catch (Exception e) {
+            tfChatInput.setDisable(true);
+            lstChat.getItems().clear();
+            lstChat.getItems().add(new Text("Chat is not available right now because the chat service is offline."));
+            timeline.stop();
+
+            e.printStackTrace();
+            return;
+        }
+
+        lstChat.getItems().clear();
+        for (String message : chatMessages) {
+            lstChat.getItems().add(new Text(message));
+        }
     }
 
     public void onClickMenuItemLoad(ActionEvent event) {
@@ -164,31 +200,27 @@ public class GameController {
         }
     }
 
+    @OnFXThread
     private class PacketPieceEaten implements PacketListener<PacketGamePieceEaten> {
         @Override
         public void received(PacketGamePieceEaten packet) throws Exception {
-            Platform.runLater(() -> gameBoard.remove(packet.getColumn(), packet.getRow()));
+            gameBoard.remove(packet.getColumn(), packet.getRow());
         }
     }
 
+    @OnFXThread
     private class PacketPieceMoved implements PacketListener<PacketGamePieceMove> {
         @Override
         public void received(PacketGamePieceMove packet) throws Exception {
-            Platform.runLater(() -> gameBoard.move(packet.getFromColumn(), packet.getFromRow(), packet.getToColumn(), packet.getTomRow()));
+            gameBoard.move(packet.getFromColumn(), packet.getFromRow(), packet.getToColumn(), packet.getTomRow());
         }
     }
 
+    @OnFXThread
     private class PacketCurrentMove implements PacketListener<PacketGameCurrentMove> {
         @Override
         public void received(PacketGameCurrentMove packet) throws Exception {
-            Platform.runLater(() -> gameBoard.setCurrentMove(packet.getCurrentMove(), false));
-        }
-    }
-
-    private class PacketReceiveMessage implements PacketListener<PacketGameChatMessage> {
-        @Override
-        public void received(PacketGameChatMessage packet) throws Exception {
-            Platform.runLater(() -> lstChat.getItems().add(new Text(packet.getMessage())));
+            gameBoard.setCurrentMove(packet.getCurrentMove(), false);
         }
     }
 }

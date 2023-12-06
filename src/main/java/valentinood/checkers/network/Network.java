@@ -4,10 +4,8 @@ import javafx.application.Platform;
 import valentinood.checkers.Constants;
 import valentinood.checkers.network.annotations.OnFXThread;
 import valentinood.checkers.network.annotations.SingleRegistration;
-import valentinood.checkers.network.packet.Packet;
-import valentinood.checkers.network.packet.PacketConnectionDisconnect;
-import valentinood.checkers.network.packet.PacketConnectionKeepAlive;
-import valentinood.checkers.network.packet.PacketConnectionResult;
+import valentinood.checkers.network.packet.*;
+import valentinood.checkers.network.rmi.RemoteChatService;
 import valentinood.checkers.network.server.Server;
 import valentinood.checkers.util.NetworkUtils;
 
@@ -19,6 +17,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.Socket;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -33,6 +34,7 @@ public class Network {
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
     private boolean disconnected = false;
+    public static RemoteChatService remoteChatService;
 
     public Network(int port) {
         this.port = port;
@@ -55,6 +57,9 @@ public class Network {
             Thread.sleep(2500); // wait a second for the server to start
         }
 
+        Registry registry = LocateRegistry.getRegistry(Constants.DEFAULT_HOST, Constants.RMI_PORT);
+        remoteChatService = (RemoteChatService) registry.lookup(RemoteChatService.REMOTE_OBJECT_NAME);
+
         client = new Socket(Constants.DEFAULT_HOST, port);
         connect(client);
     }
@@ -68,6 +73,14 @@ public class Network {
             new Thread(() -> listen(client), "NetworkClient-Listener").start();
         } catch (Exception ex) {
             ex.printStackTrace();
+        }
+    }
+
+    public void chat(String message) {
+        try {
+            remoteChatService.send(message);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
         }
     }
 

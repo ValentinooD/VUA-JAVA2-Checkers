@@ -3,6 +3,8 @@ package valentinood.checkers.network.server;
 import valentinood.checkers.Constants;
 import valentinood.checkers.game.piece.PieceTeam;
 import valentinood.checkers.network.packet.*;
+import valentinood.checkers.network.rmi.RemoteChatService;
+import valentinood.checkers.network.rmi.RemoteChatServiceImpl;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -11,6 +13,10 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.Random;
@@ -23,6 +29,8 @@ public class Server {
     private final Random random;
     private final Map<Socket, PlayerConnection> connections;
     private final Map<Integer, Socket> portsMap;
+
+    private RemoteChatService remoteChatService;
 
     private boolean running = true;
 
@@ -37,6 +45,8 @@ public class Server {
         new Thread(this::inactivityWatchdog, "ServerInactivityWatchdog").start();
 
         try {
+            startRmiChat();
+
             serverSocket = new ServerSocket(port);
             log("Listening on " + serverSocket.getLocalPort());
 
@@ -57,6 +67,14 @@ public class Server {
         }
     }
 
+    private void startRmiChat() throws RemoteException {
+        Registry registry = LocateRegistry.createRegistry(Constants.RMI_PORT);
+        remoteChatService = new RemoteChatServiceImpl();
+        RemoteChatService skeleton = (RemoteChatService) UnicastRemoteObject.exportObject(remoteChatService, Constants.RMI_PORT);
+        registry.rebind(RemoteChatService.REMOTE_OBJECT_NAME, skeleton);
+        log("RemoteChatService registered");
+    }
+
     public void handle(Socket socket) {
         try {
             if (socket.isClosed()) {
@@ -75,7 +93,7 @@ public class Server {
                 PlayerConnection pc = connections.getOrDefault(socket, null);
 
                 // Handle keep alive
-                if (pc != null && 1 == 2) {
+                if (pc != null) {
                     long millis = System.currentTimeMillis();
                     if (pc.getKeepAlive() == null && millis - pc.getLastKeepAlive() > Constants.KEEP_ALIVE_INTERVAL_MILLIS) {
                         int number = random.nextInt(Integer.MIN_VALUE, Integer.MAX_VALUE);
@@ -90,7 +108,7 @@ public class Server {
                         disconnect(pc);
                         break;
                     }
-                 }
+                }
 
                 // If nothing is available continue, so that we don't block the thread
                 if (socket.getInputStream().available() == 0) continue;
