@@ -147,6 +147,11 @@ public class GameController {
     }
 
     public void onClickMenuItemLoad(ActionEvent event) {
+        if (network != null) {
+            AlertUtils.information("Unavailable", "Loading saved games is not possible in multiplayer-games.");
+            return;
+        }
+
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Load game snapshot");
         chooser.setSelectedExtensionFilter(Constants.FILTER_GAME_SNAPSHOT);

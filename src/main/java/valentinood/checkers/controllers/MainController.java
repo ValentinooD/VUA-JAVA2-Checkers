@@ -46,11 +46,16 @@ public class MainController {
         username = tfUsername.getText();
         if (username.isBlank()) username = "Player";
 
+        if (cbLocalGame.isSelected()) {
+            startGame(null);
+            return;
+        }
+
         try {
             tfUsername.setDisable(true);
+            cbLocalGame.setDisable(true);
             btnPlay.setDisable(true);
 
-            // TODO: check if the user didn't enter letters
             network = new Network(ConfigurationReader.getInt(ConfigurationReader.Key.SERVER_PORT));
             network.register(new PacketListener<PacketConnectionResult>() {
                 @Override
@@ -96,7 +101,7 @@ public class MainController {
             stage.setResizable(false);
 
             int columns = 8;
-            int rows = 0;
+            int rows = 8;
 
             if (begin != null) {
                 columns = begin.getColumns();
