@@ -14,12 +14,14 @@ public class PieceMovedEventHandler implements EventHandler<PieceMovedEvent> {
 
     @Override
     public void handle(PieceMovedEvent event) {
-        if (controller.getNetwork() != null)
+        if (controller.getNetwork() != null) {
             controller.getNetwork().sendOnThread(new PacketGamePieceMove(
                     event.getFromColumn(),
                     event.getFromRow(),
                     event.getToColumn(),
                     event.getTomRow()
             ));
+        }
+
     }
 }

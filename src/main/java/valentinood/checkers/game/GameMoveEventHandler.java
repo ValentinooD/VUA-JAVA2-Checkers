@@ -66,21 +66,14 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
         if (!selected.allowedMoves.contains(stackPane)) return;
 
         gameBoard.move(selected.column, selected.row, pieceColumn, pieceRow);
-        EventHandler<PieceMovedEvent> pmeh = gameBoard.getEventRepository().getHandler(PieceMovedEvent.class);
-        if (pmeh != null) {
-            pmeh.handle(new PieceMovedEvent(selected.column, selected.row, pieceColumn, pieceRow));
-        }
+        gameBoard.getEventRepository().call(new PieceMovedEvent(selected.column, selected.row, pieceColumn, pieceRow));
 
         if (distance(selected.column, selected.row, pieceColumn, pieceRow) > 2) {
             int middleRow = (selected.row + pieceRow) / 2;
             int middleColumn = (selected.column + pieceColumn) / 2;
 
             Piece eaten = gameBoard.remove(middleColumn, middleRow);
-
-            EventHandler<PieceEatenEvent> handler = gameBoard.getEventRepository().getHandler(PieceEatenEvent.class);
-            if (handler != null) {
-                handler.handle(new PieceEatenEvent(selected.piece, eaten, middleColumn, middleRow));
-            }
+            gameBoard.getEventRepository().call(new PieceEatenEvent(selected.piece, eaten, middleColumn, middleRow));
 
             // It calls an event and refreshes the UI, LEAVE IT HEREE
             gameBoard.setCurrentMove(selected.piece.getTeam());
@@ -90,11 +83,7 @@ public class GameMoveEventHandler implements EventHandler<MouseEvent> {
             else if (gameBoard.getPieces(PieceTeam.Red) == 0)   won = PieceTeam.Blue;
 
             if (won != null) {
-                EventHandler<WonGameEvent> wgeHandler = gameBoard.getEventRepository().getHandler(WonGameEvent.class);
-
-                if (wgeHandler != null) {
-                    wgeHandler.handle(new WonGameEvent(won, true));
-                }
+                gameBoard.getEventRepository().call(new WonGameEvent(won, true));
             }
         } else {
             // Nothing was eaten so we flip the currentMove

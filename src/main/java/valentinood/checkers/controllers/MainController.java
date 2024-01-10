@@ -14,15 +14,20 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import valentinood.checkers.CheckersApplication;
+import valentinood.checkers.Constants;
 import valentinood.checkers.controllers.game.GameController;
 import valentinood.checkers.controllers.packet.PacketHandlerDisconnected;
 import valentinood.checkers.docs.ProjectDocumentation;
+import valentinood.checkers.game.GameBoardSnapshot;
 import valentinood.checkers.network.Network;
 import valentinood.checkers.network.PacketListener;
 import valentinood.checkers.network.jndi.ConfigurationReader;
 import valentinood.checkers.network.packet.PacketConnectionRequest;
 import valentinood.checkers.network.packet.PacketConnectionResult;
 import valentinood.checkers.network.packet.PacketGameBegin;
+import valentinood.checkers.replay.GameReplay;
+import valentinood.checkers.util.AlertUtils;
+import valentinood.checkers.util.SerializationUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,6 +41,8 @@ public class MainController {
     public CheckBox cbLocalGame;
     @FXML
     public Text txtInfo;
+
+    private GameReplay replay = null;
 
     private Network network = null;
     private String username;
@@ -92,6 +99,8 @@ public class MainController {
     }
 
     private void startGame(PacketGameBegin begin) {
+        if (replay != null && begin != null) throw new IllegalStateException("Can't replay and play in multiplayer at the same time.");
+
         try {
             FXMLLoader fxmlLoader = new FXMLLoader(CheckersApplication.class.getResource("views/game-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
@@ -111,6 +120,10 @@ public class MainController {
             GameController controller = fxmlLoader.getController();
             controller.init(stage, username, columns, rows);
 
+            if (replay != null) {
+                controller.replay(replay);
+            }
+
             if (begin != null) {
                 controller.connect(network, begin);
             }
@@ -119,6 +132,26 @@ public class MainController {
             myself.close();
         } catch (IOException ex) {
             throw new RuntimeException(ex);
+        }
+    }
+
+    public void onClickLoadReplayMenuItem(ActionEvent event) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Load replay");
+        chooser.setInitialDirectory(new File("."));
+        chooser.setSelectedExtensionFilter(Constants.FILTER_GAME_REPLAY);
+        File file = chooser.showOpenDialog(myself);
+
+        if (file == null) return;
+
+        try {
+            replay = new GameReplay(file);
+            txtInfo.setText("Game replay loaded. Starting game...");
+            startGame(null);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            AlertUtils.error("Failed to load replay", "The replay could not be loaded", ex);
         }
     }
 

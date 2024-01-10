@@ -15,7 +15,7 @@ import valentinood.checkers.game.piece.PieceType;
 
 import java.util.HashMap;
 
-public class GameBoard {
+public class GameBoard implements Cloneable {
     private final GridPane gridPane;
     private final EventRepository eventRepository;
 
@@ -141,6 +141,8 @@ public class GameBoard {
 
     public Piece remove(int column, int row) {
         Piece piece = board[row][column];
+        if (piece == null) return piece;
+
         piecesCount.put(piece.getTeam(), piecesCount.getOrDefault(piece.getTeam(), 1) - 1);
         board[row][column] = null;
         getPaneAt(column, row).getChildren().clear();
@@ -187,10 +189,7 @@ public class GameBoard {
     public void setCurrentMove(PieceTeam currentMove, boolean sendPacket) {
         this.currentMove = currentMove;
 
-        EventHandler<CurrentMoveChangedEvent> handler = getEventRepository().getHandler(CurrentMoveChangedEvent.class);
-        if (handler != null) {
-            handler.handle(new CurrentMoveChangedEvent(this.currentMove, sendPacket));
-        }
+        getEventRepository().call(new CurrentMoveChangedEvent(this.currentMove, sendPacket));
     }
 
     public void setPlayable(boolean playable) {
@@ -227,7 +226,7 @@ public class GameBoard {
     }
 
     public GameBoardSnapshot getSnapshot() {
-        return new GameBoardSnapshot(columns, rows, board, currentMove);
+        return new GameBoardSnapshot(columns, rows, board.clone(), currentMove);
     }
 
     private void syncBoard() {
@@ -242,4 +241,29 @@ public class GameBoard {
             }
         }
     }
+
+    public void setBoard(Piece[][] pieces) {
+        this.board = pieces;
+        syncBoard();
+    }
+
+//    /**
+//     * tool for debugging
+//     */
+//    public void printBoard() {
+//        for (int row = 0; row < rows; row++) {
+//            for (int column = 0; column < columns; column++) {
+//                Piece piece = board[row][column];
+//
+//                if (piece == null)
+//                    System.out.print(" ");
+//                else
+//                    System.out.print(piece.getTeam().name().charAt(0) + "");
+//            }
+//            System.out.println();
+//        }
+//        System.out.println();
+//        System.out.println("---------------------------------");
+//        System.out.println();
+//    }
 }

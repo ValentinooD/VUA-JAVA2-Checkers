@@ -3,9 +3,11 @@ module valentinood.checkers {
     requires javafx.fxml;
     requires java.rmi;
     requires java.naming;
+    requires java.xml;
 
     exports valentinood.checkers;
     exports valentinood.checkers.controllers;
+
 
     opens valentinood.checkers to javafx.fxml;
     opens valentinood.checkers.controllers to javafx.fxml;

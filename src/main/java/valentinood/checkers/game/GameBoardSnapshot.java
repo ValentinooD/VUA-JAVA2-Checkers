@@ -17,9 +17,23 @@ public class GameBoardSnapshot implements Serializable {
     public GameBoardSnapshot(int columns, int rows, Piece[][] board, PieceTeam currentMove) {
         this.columns = columns;
         this.rows = rows;
-        this.board = board;
         this.currentMove = currentMove;
         this.piecesCount = new HashMap<>();
+
+        // it has to be done like this
+        // because clone() will not clone the second array
+        // and this keeps breaking the replay
+        this.board = new Piece[rows][columns];
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                Piece piece = board[row][column];
+
+                if (piece != null)
+                    piece = piece.clone();
+
+                this.board[row][column] = piece;
+            }
+        }
 
         calculatePieces();
     }

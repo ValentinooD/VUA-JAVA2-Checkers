@@ -7,6 +7,8 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
@@ -27,20 +29,17 @@ import valentinood.checkers.event.WonGameEvent;
 import valentinood.checkers.game.GameBoard;
 import valentinood.checkers.game.GameBoardSnapshot;
 import valentinood.checkers.game.piece.PieceTeam;
+import valentinood.checkers.replay.GameReplay;
 import valentinood.checkers.network.Network;
 import valentinood.checkers.network.PacketListener;
 import valentinood.checkers.network.annotations.OnFXThread;
 import valentinood.checkers.network.packet.*;
-import valentinood.checkers.network.server.Server;
 import valentinood.checkers.util.AlertUtils;
 import valentinood.checkers.util.SerializationUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.rmi.RemoteException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 public class GameController {
     @FXML
@@ -54,6 +53,16 @@ public class GameController {
     public ListView<Text> lstChat;
     @FXML
     public TextField tfChatInput;
+
+    @FXML
+    public Label txtUnavailable;
+    @FXML
+    public Button btnBack;
+    @FXML
+    public Button btnForward;
+
+    private boolean isReplaying = false;
+    private GameReplay replay;
 
     private Network network;
 
@@ -77,6 +86,9 @@ public class GameController {
 
         this.gameBoard.initGame();
 
+        this.replay = new GameReplay(gameBoard.getEventRepository());
+        setReplaying(false);
+
         this.tfChatInput.setOnKeyPressed(new EventHandler<KeyEvent>() {
             @Override
             public void handle(KeyEvent event) {
@@ -89,17 +101,37 @@ public class GameController {
             }
         });
         tfChatInput.setDisable(true);
+        tfChatInput.setText("You cannot chat in single-player mode.");
+        lstChat.getItems().clear();
         lstChat.getItems().add(new Text("Chat is not available in single-player mode."));
 
         stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
             @Override
             public void handle(WindowEvent windowEvent) {
                 if (network != null) network.stop();
+
+                try {
+                    replay.save(new File("./replay.xml"));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
         });
     }
 
+    public void replay(GameReplay replay) {
+        this.replay = replay;
+        setReplaying(true);
+
+        // since we're at the beginning
+        btnBack.setDisable(true);
+    }
+
     public void connect(Network network, PacketGameBegin begin) {
+        if (isReplaying) {
+            throw new IllegalStateException("Unable to connect while replaying");
+        }
+
         this.network = network;
 
         this.gameBoard.setUnplayableSide(begin.getPlayerTeam() == PieceTeam.Blue ? PieceTeam.Red : PieceTeam.Blue);
@@ -109,6 +141,7 @@ public class GameController {
 
         lstChat.getItems().clear();
         tfChatInput.setDisable(false);
+        tfChatInput.setText("");
 
         // note: PacketHandlerDisconnected is already registered before
         this.network.register(new PacketCurrentMove());
@@ -120,6 +153,41 @@ public class GameController {
         timeline = new Timeline(new KeyFrame(Duration.millis(1000), event -> updateChat()));
         timeline.setCycleCount(Animation.INDEFINITE);
         timeline.play();
+    }
+
+
+    public void setReplaying(boolean replaying) {
+        isReplaying = replaying;
+
+        txtUnavailable.setVisible(!replaying);
+        btnBack.setVisible(replaying);
+        btnForward.setVisible(replaying);
+
+        gameBoard.setPlayable(!replaying);
+
+        if (replaying) {
+            tfChatInput.setDisable(true);
+            tfChatInput.setText("You cannot chat in replay mode.");
+            lstChat.getItems().clear();
+            lstChat.getItems().add(new Text("Chat is not available in replay mode."));
+
+            txtPlayerName.setText("Blue");
+            txtOtherPlayerName.setText("Red");
+        }
+    }
+
+    public void onClickButtonForward(ActionEvent event) {
+        replay.playForward(gameBoard);
+
+        btnForward.setDisable(replay.getCurrentActionIndex() >= replay.getActionsLength());
+        btnBack.setDisable(replay.getCurrentActionIndex() == 0);
+    }
+
+    public void onClickButtonBack(ActionEvent event) {
+        replay.playBackward(gameBoard);
+
+        btnForward.setDisable( replay.getCurrentActionIndex() >= replay.getActionsLength());
+        btnBack.setDisable(replay.getCurrentActionIndex() == 0);
     }
 
     public void restart() {
@@ -189,6 +257,10 @@ public class GameController {
         return network;
     }
 
+    public GameBoard getGameBoard() {
+        return gameBoard;
+    }
+
     public void onClickMenuItemClose(ActionEvent event) {
         Platform.exit();
     }
@@ -197,11 +269,7 @@ public class GameController {
     private class PacketGameEndListener implements PacketListener<PacketGameEnd> {
         @Override
         public void received(PacketGameEnd packet) throws Exception {
-            EventHandler<WonGameEvent> wgeHandler = gameBoard.getEventRepository().getHandler(WonGameEvent.class);
-
-            if (wgeHandler != null) {
-                wgeHandler.handle(new WonGameEvent(packet.getWinner(), false));
-            }
+            gameBoard.getEventRepository().call(new WonGameEvent(packet.getWinner(), false));
         }
     }
 

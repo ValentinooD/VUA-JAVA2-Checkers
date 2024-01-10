@@ -5,7 +5,7 @@ import javafx.scene.image.ImageView;
 
 import java.io.Serializable;
 
-public class Piece implements Serializable {
+public class Piece implements Serializable, Cloneable {
     private PieceType type;
     private transient ImageView imageView;
 
@@ -63,5 +63,15 @@ public class Piece implements Serializable {
                 "type=" + type +
                 ", imageView=" + imageView +
                 '}';
+    }
+
+    @Override
+    public Piece clone() {
+        try {
+            Piece clone = (Piece) super.clone();
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
     }
 }

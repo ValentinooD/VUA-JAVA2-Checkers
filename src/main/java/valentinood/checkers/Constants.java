@@ -13,6 +13,7 @@ public final class Constants {
     public static final Background BACKGROUND_TILE_HIGHLIGHTED = Background.fill(Paint.valueOf("#898989"));
 
     public static final FileChooser.ExtensionFilter FILTER_GAME_SNAPSHOT = new FileChooser.ExtensionFilter("Checkers game save", "*");
+    public static final FileChooser.ExtensionFilter FILTER_GAME_REPLAY = new FileChooser.ExtensionFilter("Checkers game replay", "*.xml");
 
     public static final File CLASSDATA_PATH = new File("target/classes/");
 
