@@ -89,6 +89,8 @@ public class GameReplay implements EventWatcher {
 
         GameAction obj = (GameAction) map.get(event.getClass()).getConstructor().newInstance();
         obj.load(event);
+
+        actionList.add(obj);
     }
 
     public void save(File file) throws Exception {
